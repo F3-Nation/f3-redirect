@@ -1,0 +1,22 @@
+project_id                     = "my-region-project"
+region                         = "us-central1"
+artifact_registry_repository_id = "f3-region-redirect"
+
+web_service_name   = "f3-muletown-web"
+stats_service_name = "f3-muletown-stats"
+
+web_domain   = "f3muletown.com"
+stats_domain = "stats.f3muletown.com"
+
+web_image   = "us-central1-docker.pkg.dev/my-region-project/f3-region-redirect/web:initial"
+stats_image = "us-central1-docker.pkg.dev/my-region-project/f3-region-redirect/stats:initial"
+
+region_slug = "muletown"
+region_id   = "35838"
+region_name = "Muletown"
+
+service_labels = {
+  application = "f3-region-redirect"
+  managed_by  = "terraform"
+  region      = "muletown"
+}

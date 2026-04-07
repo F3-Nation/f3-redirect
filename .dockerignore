@@ -1,0 +1,17 @@
+.git
+.github
+.next
+.turbo
+coverage
+node_modules
+playwright-report
+test-results
+.pnpm-store
+.terraform
+*.tfstate
+*.tfstate.*
+*.tfplan
+.env
+.env.local
+.env.production
+infra/terraform/**/.terraform

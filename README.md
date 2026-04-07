@@ -1,65 +1,79 @@
 # F3 Region
 
-A generic, configurable redirect site for any F3 region. Fork or deploy this repo, set three environment variables, and your region gets a branded domain that routes traffic to the right F3 Nation destinations.
+A generic, configurable redirect site for any F3 region. Each region can deploy the same codebase, inject three region-specific environment variables, and publish its own branded domains without changing application code.
 
-## How it works
+## What this repo does
 
-This is a Turbo monorepo with two tiny Next.js apps:
+This is a Turbo monorepo with two small Next.js apps:
 
-- **`apps/web`** — Redirects your domain (e.g., `f3muletown.com`) to your region page on `regions.f3nation.com`.
-- **`apps/stats`** — Redirects a stats subdomain (e.g., `stats.f3muletown.com`) to your YTD stats dashboard on `pax-vault.f3nation.com`.
+- `apps/web` redirects the main region domain, such as `f3muletown.com`, to `regions.f3nation.com/<region-slug>`.
+- `apps/stats` redirects a stats subdomain, such as `stats.f3muletown.com`, to `pax-vault.f3nation.com/stats/region/<region-id>`.
 
-All redirect targets are driven by environment variables — no code changes needed.
+Both apps use the same runtime env contract:
 
-## Setup
+- `REGION_SLUG`
+- `REGION_ID`
+- `REGION_NAME`
 
-### 1. Configure environment variables
+Those values match the generic redirect behavior in this repo and cover the same region-specific data the Muletown setup needs.
 
-Copy `.env.example` to `.env` and fill in your region's values:
+## Preferred deployment path: minimal Cloud Run with Terraform
+
+This repo now includes a Terraform stack at [infra/terraform/cloud-run/README.md](/Users/patrick/workspaces/clients/f3-nation/f3-redirect/infra/terraform/cloud-run/README.md) that provisions:
+
+- Artifact Registry for Docker images
+- one Cloud Run service for `apps/web`
+- one Cloud Run service for `apps/stats`
+- runtime service accounts
+- public access for both services by default
+- optional direct Cloud Run custom-domain mappings for each service
+
+### High-level flow
+
+1. Copy [infra/terraform/cloud-run/terraform.tfvars.example](/Users/patrick/workspaces/clients/f3-nation/f3-redirect/infra/terraform/cloud-run/terraform.tfvars.example) to `terraform.tfvars`.
+2. Fill in your Google Cloud project, Cloud Run region, image tags, and the three region env vars.
+3. Run a targeted Terraform apply to create Artifact Registry first.
+4. Build and push `Dockerfile.web` and `Dockerfile.stats`.
+5. Run `terraform apply` for the full stack so the two Cloud Run services point at those pushed images.
+6. If you set `web_domain` and `stats_domain`, copy the Terraform output DNS records into GoDaddy.
+
+This path is intentionally cheap and simple. It uses Cloud Run domain mappings directly instead of adding an HTTPS load balancer.
+
+## Local development
+
+Copy [.env.example](/Users/patrick/workspaces/clients/f3-nation/f3-redirect/.env.example) to `.env` and fill in your region's values:
 
 ```bash
 cp .env.example .env
-```
-
-| Variable | Example | Description |
-|----------|---------|-------------|
-| `REGION_SLUG` | `muletown` | Your region's slug on `regions.f3nation.com` |
-| `REGION_ID` | `35838` | Your region's numeric ID (from `pax-vault.f3nation.com/stats/region/<id>`) |
-| `REGION_NAME` | `Muletown` | Display name used in page titles and metadata |
-
-### 2. Install and run
-
-```bash
 pnpm install
 pnpm dev
 ```
 
-- Web app: http://localhost:3000
-- Stats app: http://localhost:3001
+Local ports:
 
-### 3. Deploy to Vercel
+- web app: `http://localhost:3000`
+- stats app: `http://localhost:3001`
 
-Deploy each app separately on Vercel, setting the environment variables in each project's settings. Point your custom domain at the web app deployment.
+## Environment variables
 
-## Development
+| Variable | Example | Description |
+|----------|---------|-------------|
+| `REGION_SLUG` | `muletown` | Region slug on `regions.f3nation.com` |
+| `REGION_ID` | `35838` | Numeric ID from `pax-vault.f3nation.com/stats/region/<id>` |
+| `REGION_NAME` | `Muletown` | Display name used in page titles and metadata |
 
-- `pnpm dev` — Start both apps
-- `pnpm lint` — Lint all packages
-- `pnpm typecheck` — Type-check all packages
-- `pnpm test` — Run unit tests
-- `pnpm test:e2e` — Run Playwright E2E tests
-- `pnpm build` — Production build
+## Development commands
 
-## Project structure
+- `pnpm dev` starts both apps
+- `pnpm lint` lints all packages
+- `pnpm typecheck` runs TypeScript checks
+- `pnpm test` runs unit tests
+- `pnpm test:e2e` runs Playwright end-to-end tests
+- `pnpm build` creates production builds
 
-```
-apps/
-  web/          → Region homepage redirect (port 3000)
-  stats/        → Stats dashboard redirect (port 3001)
-packages/
-  redirects/    → Shared redirect logic (reads env vars)
-  eslint-config/
-  prettier-config/
-  tsconfig/
-  vitest-config/
-```
+## Container files
+
+- [Dockerfile.web](/Users/patrick/workspaces/clients/f3-nation/f3-redirect/Dockerfile.web) builds the main region redirect app for Cloud Run.
+- [Dockerfile.stats](/Users/patrick/workspaces/clients/f3-nation/f3-redirect/Dockerfile.stats) builds the stats redirect app for Cloud Run.
+
+Both use Next.js standalone output so Cloud Run only needs the production runtime artifacts.
