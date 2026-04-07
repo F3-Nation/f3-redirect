@@ -1,5 +1,5 @@
 {
-  "name": "f3-region",
+  "name": "f3-redirect",
   "version": "1.0.0",
   "private": true,
   "description": "Generic F3 region redirect site — configure via environment variables and deploy to Google Cloud Run via Terraform.",

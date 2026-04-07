@@ -64,4 +64,3 @@ terraform output stats_domain_mapping_records
 
 - `.claude/skills/f3-region-gcp-terraform-deploy/SKILL.md`
   Use for project creation, CLI bootstrap, Terraform apply flow, Cloud Run domain mapping, and GoDaddy DNS handoff.
-
