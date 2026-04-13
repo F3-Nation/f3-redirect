@@ -53,10 +53,11 @@ resource "google_service_account" "stats" {
 }
 
 resource "google_cloud_run_v2_service" "web" {
-  name     = var.web_service_name
-  location = var.region
-  ingress  = var.ingress
-  labels   = var.service_labels
+  name                = var.web_service_name
+  location            = var.region
+  ingress             = var.ingress
+  labels              = var.service_labels
+  deletion_protection = false
 
   template {
     service_account = google_service_account.web.email
@@ -87,10 +88,11 @@ resource "google_cloud_run_v2_service" "web" {
 }
 
 resource "google_cloud_run_v2_service" "stats" {
-  name     = var.stats_service_name
-  location = var.region
-  ingress  = var.ingress
-  labels   = var.service_labels
+  name                = var.stats_service_name
+  location            = var.region
+  ingress             = var.ingress
+  labels              = var.service_labels
+  deletion_protection = false
 
   template {
     service_account = google_service_account.stats.email

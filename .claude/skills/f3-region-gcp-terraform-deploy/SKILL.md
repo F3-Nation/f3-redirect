@@ -87,14 +87,17 @@ region_name = "Muletown"
 
 ## Preferred Project Convention
 
-Guide the user toward a dedicated project per region:
+Guide the user toward a **dedicated Google Cloud project and billing account per region**:
 
 - project name: `F3 <Region Name>`
 - project id: `f3-<region-slug>`
+- billing account name: `F3 <Region Name>`
 - labels:
   - `application=f3-region-redirect`
   - `region=<region-slug>`
   - `managed_by=terraform`
+
+Each region owns its own billing account so costs are isolated and easy to track. Do NOT suggest shared billing accounts across regions.
 
 If the user is deploying inside an existing organization, prefer placing the project inside the appropriate folder before provisioning infra.
 
@@ -110,14 +113,23 @@ gcloud projects create f3-<slug> --name="F3 <Region Name>"
 gcloud config set project f3-<slug>
 ```
 
-5. **Enable billing and APIs**:
+5. **Link billing** — a billing account is required before enabling APIs. Create a new one named `F3 <Region Name>` at https://console.cloud.google.com/billing/create, then link it:
+
+```bash
+gcloud billing accounts list
+gcloud billing projects link f3-<slug> --billing-account=<ACCOUNT_ID>
+```
+
+Note: billing account creation cannot be done via CLI — the user must create it in the console. Prompt them to do so and wait for the account ID.
+
+6. **Enable APIs**:
 
 ```bash
 gcloud services enable artifactregistry.googleapis.com run.googleapis.com
 ```
 
-6. **Write config files** — create both `.env` and `terraform.tfvars` with the user's values.
-7. **Initialize Terraform and create Artifact Registry**:
+7. **Write config files** — create both `.env` and `terraform.tfvars` with the user's values.
+8. **Initialize Terraform and create Artifact Registry**:
 
 ```bash
 cd infra/terraform/cloud-run
@@ -125,13 +137,13 @@ terraform init
 terraform apply -target=google_artifact_registry_repository.containers
 ```
 
-8. **Configure Docker auth**:
+9. **Configure Docker auth**:
 
 ```bash
 gcloud auth configure-docker <region>-docker.pkg.dev
 ```
 
-9. **Build and push both images** (from repo root):
+10. **Build and push both images** (from repo root):
 
 ```bash
 docker build -f Dockerfile.web -t <web_image> .
@@ -140,20 +152,20 @@ docker build -f Dockerfile.stats -t <stats_image> .
 docker push <stats_image>
 ```
 
-10. **Apply the full Terraform stack**:
+11. **Apply the full Terraform stack**:
 
 ```bash
 terraform apply
 ```
 
-11. **Retrieve DNS records for both services**:
+12. **Retrieve DNS records for both services**:
 
 ```bash
 terraform output web_domain_mapping_records
 terraform output stats_domain_mapping_records
 ```
 
-12. **Report results to the user**:
+13. **Report results to the user**:
     - Cloud Run service URLs (the `.run.app` URLs for immediate testing)
     - Exact DNS records for the web domain (e.g., `f3muletown.com`)
     - Exact DNS records for the stats domain (e.g., `stats.f3muletown.com`)
