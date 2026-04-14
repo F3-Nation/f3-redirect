@@ -88,3 +88,40 @@ resource "google_project_iam_member" "admin_ui_log_writer" {
   role    = "roles/logging.logWriter"
   member  = "serviceAccount:${google_service_account.admin_ui.email}"
 }
+
+# ---------------------------------------------------------------------------
+# Secret Manager IAM — one binding per (service account, secret) pair.
+#
+# Each Cloud Run service account can read ONLY its own Neon connection string.
+# Bindings are scoped to the individual secret resource (not the project) so
+# that the blast radius of a leaked runtime token is exactly one DB role.
+# See Decision 8 "Layer 1 — Secret Manager + Neon connection strings".
+# ---------------------------------------------------------------------------
+
+resource "google_secret_manager_secret_iam_member" "runtime_neon_accessor" {
+  project   = var.project_id
+  secret_id = google_secret_manager_secret.neon_redirect["runtime"].secret_id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.runtime.email}"
+}
+
+resource "google_secret_manager_secret_iam_member" "reconciler_neon_accessor" {
+  project   = var.project_id
+  secret_id = google_secret_manager_secret.neon_redirect["reconciler"].secret_id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.reconciler.email}"
+}
+
+resource "google_secret_manager_secret_iam_member" "admin_ui_neon_accessor" {
+  project   = var.project_id
+  secret_id = google_secret_manager_secret.neon_redirect["admin_ui"].secret_id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.admin_ui.email}"
+}
+
+# neon-redirect-platform-admin-url is intentionally NOT bound to any Cloud Run
+# service account. It holds the privileged migration role used by the CI job
+# that runs Drizzle migrations against the f3-redirect-platform Neon project
+# (Decision 8). Access for that CI job is granted out-of-band once the job
+# identity exists; binding it here would couple this module to CI wiring that
+# does not yet live in Terraform.

@@ -37,3 +37,28 @@ output "admin_ui_service_account_email" {
   description = "Email of the redirect-admin-ui service account (Decision 5, admin UI in the f3-nation monorepo)."
   value       = google_service_account.admin_ui.email
 }
+
+# ---------------------------------------------------------------------------
+# Secret Manager outputs. Short names only — F3R5_004 consumes these when
+# wiring Cloud Run services to mount the Neon connection strings.
+# ---------------------------------------------------------------------------
+
+output "neon_redirect_runtime_secret_name" {
+  description = "Short name of the Secret Manager secret holding the runtime Neon connection string."
+  value       = google_secret_manager_secret.neon_redirect["runtime"].secret_id
+}
+
+output "neon_redirect_reconciler_secret_name" {
+  description = "Short name of the Secret Manager secret holding the reconciler Neon connection string."
+  value       = google_secret_manager_secret.neon_redirect["reconciler"].secret_id
+}
+
+output "neon_redirect_admin_ui_secret_name" {
+  description = "Short name of the Secret Manager secret holding the admin UI Neon connection string."
+  value       = google_secret_manager_secret.neon_redirect["admin_ui"].secret_id
+}
+
+output "neon_redirect_platform_admin_secret_name" {
+  description = "Short name of the Secret Manager secret holding the privileged platform-admin (migration) Neon connection string."
+  value       = google_secret_manager_secret.neon_redirect["platform_admin"].secret_id
+}
