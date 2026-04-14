@@ -54,7 +54,17 @@ resource "google_compute_backend_service" "redirect_default" {
     sample_rate = 1.0
   }
 
-  # Intentionally no `backend {}` blocks. F3R5_004 adds the Cloud Run NEG.
+  # Intentionally no `backend {}` blocks here. The Cloud Run runtime NEG is
+  # attached by the sibling `cloud-run-apps` module (F3R5_004) using a
+  # `gcloud compute backend-services add-backend` call wrapped in a
+  # `null_resource` (Terraform has no per-backend sub-resource on
+  # `google_compute_backend_service`). `ignore_changes = [backend]` here
+  # prevents this module from reverting that out-of-band attachment on
+  # every plan. See `infra/terraform/cloud-run-apps/lb_backend.tf` for the
+  # attachment logic and the accompanying README for the rationale.
+  lifecycle {
+    ignore_changes = [backend]
+  }
 
   depends_on = [google_project_service.required]
 }
