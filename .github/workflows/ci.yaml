@@ -4,41 +4,33 @@ on:
   push:
   pull_request:
 
-# The repo is a clean slate. These jobs are guarded so they pass green now and
-# start exercising real checks the moment Go / Node code lands. Flesh out the
-# matrix (lint, build, deploy) when the implementation PR introduces modules.
-
 jobs:
   go:
-    name: Go (redirect tier)
+    name: Go checks
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Detect Go module
-        id: detect
-        run: |
-          if [ -f go.mod ]; then
-            echo "present=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "present=false" >> "$GITHUB_OUTPUT"
-            echo "No go.mod yet — clean slate. Skipping Go checks."
-          fi
-
       - uses: actions/setup-go@v5
-        if: steps.detect.outputs.present == 'true'
         with:
-          go-version: stable
+          go-version: "1.26"
           cache: true
 
       - name: Vet
-        if: steps.detect.outputs.present == 'true'
         run: go vet ./...
 
-      - name: Test
-        if: steps.detect.outputs.present == 'true'
-        run: go test ./...
+      - name: Test + coverage gate
+        run: bash scripts/coverage.sh
+        env:
+          COVER_THRESHOLD: "70"
 
       - name: Build
-        if: steps.detect.outputs.present == 'true'
         run: go build ./...
+
+  docker:
+    name: Docker build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image (no push)
+        run: docker build --provenance=false --sbom=false -t redirectd:ci .
