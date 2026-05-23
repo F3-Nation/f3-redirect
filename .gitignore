@@ -1,56 +1,73 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
-# dependencies
+# --- Go (redirect tier) ---
+# Test binaries and build output
+*.test
+*.out
+/bin/
+/dist/
+# Coverage
+coverage.out
+coverage.txt
+profile.cov
+
+# --- Node / TypeScript (frontend + API) ---
 node_modules/
 .pnp
 .pnp.*
 .pnpm-store/
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/versions
-
-# package managers (pnpm only)
 package-lock.json
 npm-shrinkwrap.json
 yarn.lock
+.next/
+out/
+build/
+*.tsbuildinfo
+next-env.d.ts
+.eslintcache
+.turbo
 
-# testing
+# --- Testing ---
 coverage/
+.nyc_output/
+*.lcov
 playwright-report/
 test-results/
 blob-report/
 
-# next.js
-.next/
-out/
+# --- Terraform / infra ---
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+*.tfvars
+*.tfvars.json
+*.auto.tfvars
+*.auto.tfvars.json
+!**/*.tfvars.example
 
-# production
-build/
-dist/
-
-# misc
-.DS_Store
-.turbo
+# --- Secrets / certs (never commit) ---
 *.pem
-.eslintcache
+*.key
+*.crt
+*.p12
+*-key.json
+service-account*.json
 
-# debug
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
-
-# env files (region-specific — use .env.example as a template)
+# --- Env files ---
 .env*
 !.env.example
 
-# vercel
-.vercel
-
-# typescript
-*.tsbuildinfo
-next-env.d.ts
-
-pr.md
+# --- Misc / OS ---
+.DS_Store
+.cache/
+.tmp/
+tmp/
+*.log
+logs/

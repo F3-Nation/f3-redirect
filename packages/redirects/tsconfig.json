@@ -1,8 +1,0 @@
-{
-  "extends": "@f3-region/tsconfig/base",
-  "compilerOptions": {
-    "rootDir": "src",
-    "noEmit": true
-  },
-  "include": ["src"]
-}
