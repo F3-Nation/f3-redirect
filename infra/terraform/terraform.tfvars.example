@@ -1,0 +1,7 @@
+# Copy to terraform.tfvars (gitignored) and fill in.
+project      = "f3-redirects"
+region       = "us-central1"
+zone         = "us-central1-a"
+acme_email   = "you@example.com"
+acme_staging = false
+# image_tag  = "latest"

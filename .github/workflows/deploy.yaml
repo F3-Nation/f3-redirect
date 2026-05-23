@@ -1,0 +1,60 @@
+name: Deploy
+
+# Continuous deployment to Google Cloud: every push to main (or a manual
+# dispatch) builds the redirect image, pushes it to Artifact Registry, and
+# rolls the GCE VM so it pulls and runs the new image.
+#
+# Auth is keyless via Workload Identity Federation — no long-lived SA keys.
+# The WIF pool/provider and deployer SA are provisioned out-of-band (see
+# README "CI/CD"). These identifiers are not secrets.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  PROJECT: f3-redirects
+  REGION: us-central1
+  ZONE: us-central1-a
+  REPO: redirect
+  INSTANCE: redirect-vm
+  WIF_PROVIDER: projects/355149658273/locations/global/workloadIdentityPools/github-pool/providers/github
+  DEPLOYER_SA: redirect-deployer@f3-redirects.iam.gserviceaccount.com
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.WIF_PROVIDER }}
+          service_account: ${{ env.DEPLOYER_SA }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+
+      - name: Build & push image
+        run: |
+          IMAGE="${REGION}-docker.pkg.dev/${PROJECT}/${REPO}/redirectd"
+          # --provenance=false: emit a plain single-arch manifest. The buildx
+          # default OCI index (with an attestation manifest) is not reliably
+          # pullable by the Container-Optimized OS docker on the VM.
+          docker build --provenance=false --sbom=false \
+            -t "${IMAGE}:${GITHUB_SHA}" -t "${IMAGE}:latest" .
+          docker push "${IMAGE}:${GITHUB_SHA}"
+          docker push "${IMAGE}:latest"
+
+      - name: Roll the VM (re-runs startup script, pulls :latest)
+        run: |
+          gcloud compute instances reset "${INSTANCE}" --zone "${ZONE}" --project "${PROJECT}"
+          echo "Reset ${INSTANCE}; it will pull the new image on boot."

@@ -1,0 +1,9 @@
+{
+  "mappings": [
+    { "host": "f3muletown.com", "target": "https://regions.f3nation.com/muletown" },
+    { "host": "www.f3muletown.com", "target": "https://regions.f3nation.com/muletown" },
+    { "host": "stats.f3muletown.com", "target": "https://pax-vault.f3nation.com/stats/region/35838" },
+    { "host": "f3marshall.com", "target": "https://regions.f3nation.com/marshall-tn" },
+    { "host": "www.f3marshall.com", "target": "https://regions.f3nation.com/marshall-tn" }
+  ]
+}
