@@ -1,84 +1,122 @@
 # F3 Redirect
 
 A multi-tenant service that redirects **custom domains** to arbitrary destination
-URLs. A user signs in, registers a custom domain plus a destination URL, gets DNS
-instructions, and once their domain points at us every request to it returns a
-301/302 to their destination.
+URLs. Each request arrives at our redirect tier (because the tenant pointed their
+DNS at us); we read the `Host` header, look up the target, and return a 301/302.
+TLS certificates for those custom domains are issued **on demand** and stored in
+GCS — no database anywhere.
 
-The first two mappings to support:
+## Mappings (current)
 
-| Source                  | Destination                                       | DNS shape                              |
-| ----------------------- | ------------------------------------------------- | -------------------------------------- |
-| `f3muletown.com`        | `https://regions.f3nation.com/muletown`           | **apex** → A record to a static IP     |
-| `stats.f3muletown.com`  | `https://pax-vault.f3nation.com/stats/region/35838` | **subdomain** → CNAME to our hostname  |
+| Source                 | Destination                                          | DNS shape  | DNS owner          |
+| ---------------------- | ---------------------------------------------------- | ---------- | ------------------ |
+| `f3muletown.com`       | `https://regions.f3nation.com/muletown`              | apex (A)   | Route 53 (us)      |
+| `www.f3muletown.com`   | `https://regions.f3nation.com/muletown`              | CNAME      | Route 53 (us)      |
+| `stats.f3muletown.com` | `https://pax-vault.f3nation.com/stats/region/35838`  | CNAME      | Route 53 (us)      |
+| `f3marshall.com`       | `https://regions.f3nation.com/marshall-tn`           | apex (A)   | external (hand-off)|
+| `www.f3marshall.com`   | `https://regions.f3nation.com/marshall-tn`           | CNAME      | external (hand-off)|
 
-These two exercise both DNS shapes from day one: the apex domain can't CNAME (needs
-an A record to a reserved static IP), while the subdomain can CNAME normally.
+## Architecture
 
-> **Status: clean slate.** This repository has been reset. The previous
-> TypeScript/Next.js + Cloud Run implementation (per-region redirect apps) has
-> been removed to make room for a re-imagined, multi-tenant architecture. The
-> implementation lands in a follow-up PR — see **Planned architecture** below.
+- **Redirect tier (Go, `cmd/redirectd`).** Terminates TLS itself and emits the
+  redirect. Because it owns port 443, it runs on **GCE** (Container-Optimized OS
+  VM), not Cloud Run.
+- **On-demand TLS via [CertMagic](https://github.com/caddyserver/certmagic).**
+  Certs are obtained from Let's Encrypt the first time a registered host is seen,
+  and stored in GCS (`internal/certstore`) so they're shared across instances and
+  survive restarts. Issuance is **gated on the registry**: the decision function
+  refuses to obtain a cert for a host that isn't in the config (abuse / rate-limit
+  guard).
+- **Config is a flat JSON file in GCS — no database** (`internal/mappings`). The
+  same file is the registry the TLS gate consults. The server hot-reloads it on
+  an interval, so new mappings take effect without a redeploy.
+- **Admin CLI (Go, `cmd/f3redirect`).** Add/list/remove mappings and print the DNS
+  records a tenant must create. A TypeScript management UI is deferred.
 
-## Planned architecture
+```
+cmd/redirectd      HTTPS redirect server (on-demand TLS)
+cmd/f3redirect     admin CLI
+internal/mappings  config model, resolve, validate, DNS instructions, stores (file + GCS)
+internal/redirect  HTTP redirect handler + hot-reloading Live view
+internal/certstore certmagic.Storage backed by GCS
+internal/server    CertMagic wiring (gated on-demand issuance)
+infra/terraform    GCS bucket, static IP, COS VM, firewall, Artifact Registry, IAM
+```
 
-The first goal is to **prove out the concept** with a Go backend only. No
-web frontend yet — administration happens over a **CLI** (optionally wrapped by
-Claude Code skills for ergonomic local-dev use). A TypeScript management UI is
-explicitly deferred until the core works.
+## Local development
 
-- **Redirect tier (Go).** Reads the `Host` header on each request, looks up the
-  target mapping, and emits the 301/302. DNS only routes the request to us; the
-  redirect itself is an HTTP response we produce. This tier also handles on-demand
-  TLS (see below).
-- **Admin CLI (Go).** Adds/lists/removes tenant mappings
-  (`hostname → target URL`) and prints the DNS instructions a tenant needs —
-  typically a CNAME from their domain to our hostname plus a TXT record for
-  ownership verification before activation. Claude Code skills may wrap this CLI
-  for convenience.
-- **Storage — a flat file in GCS. No database.** Keep it ridiculously simple: the
-  mappings live in a single minimal config file (e.g. JSON) in a Google Cloud
-  Storage bucket. The redirect tier reads it to resolve hosts; the on-demand TLS
-  decision function checks it to confirm a hostname is registered before issuing a
-  cert; the CLI edits it. We can graduate to a database later if we ever need to.
-- **TypeScript frontend — deferred.** A multi-tenant management UI is out of scope
-  for now; the CLI covers administration while we validate the approach.
+Run the CLI against a local file (no cloud needed):
 
-### Why Go for the redirect tier
+```bash
+cp config.example.json /tmp/redirects.json
+go run ./cmd/f3redirect list --file /tmp/redirects.json
+go run ./cmd/f3redirect dns  --file /tmp/redirects.json --static-ip 203.0.113.10
+go run ./cmd/f3redirect add  --file /tmp/redirects.json example.com https://example.org
+```
 
-The hard part of this system is issuing valid TLS certificates **on demand** for
-domains we don't own. Go has the most mature ecosystem for this:
+Run the server locally (cert storage is always GCS — set a bucket):
 
-- **[CertMagic](https://github.com/caddyserver/certmagic)** (the ACME engine
-  behind Caddy) provides automatic on-demand TLS as a library — embedded in our
-  own Go HTTP server so we keep full control of the redirect logic.
-- The workload is **network/TLS-bound, not CPU-bound**, so Rust's performance and
-  memory advantages don't move the needle here.
+```bash
+CONFIG_FILE=/tmp/redirects.json CERT_BUCKET=<bucket> ACME_STAGING=1 \
+HTTP_ADDR=:8080 HTTPS_ADDR=:8443 ACME_EMAIL=you@example.com \
+  go run ./cmd/redirectd
+```
 
-### Constraints the implementation must honor
+## Tests & coverage
 
-1. **Gate cert issuance on a registry check.** CertMagic's on-demand decision
-   function must confirm the incoming hostname is in the GCS config file before
-   issuing a cert — otherwise anyone pointing a domain at our IP could exhaust our
-   Let's Encrypt rate limits.
-2. **Shared cert storage, never the filesystem default.** Instances are
-   ephemeral/autoscaled, so certs live in a shared backend (a GCS storage adapter)
-   and are reused across instances and restarts. Keeping both the config file and
-   the certs in GCS means no database anywhere.
-3. **We terminate TLS ourselves**, so we own port 443 directly. This rules out
-   Cloud Run for the redirect tier (it terminates TLS for us); the redirect tier
-   deploys on **GCE (managed instance group) or GKE**.
-4. **Apex/root domains can't CNAME.** Root-domain redirects need ALIAS/ANAME or an
-   A record to a static IP — handled in the DNS-instruction logic.
+```bash
+go test ./...
+bash scripts/coverage.sh           # enforces a coverage threshold (default 70%)
+```
 
-## What's in this repo today
+The gate covers the business-logic packages (`internal/mappings`,
+`internal/redirect`). Cloud-IO packages (`internal/certstore`, `internal/server`)
+and the `cmd/` entrypoints are validated by the deploy-time smoke test instead.
+Coverage artifacts (`coverage.out`, `coverage.html`) are gitignored.
 
-Only repository scaffolding survives the reset:
+## Deploy (Terraform)
 
-| Path                               | Purpose                                 |
-| ---------------------------------- | --------------------------------------- |
-| `.github/workflows/ci.yaml`        | CI (Go-aware; no-ops until code lands)  |
-| `.github/CODEOWNERS`               | Code ownership                          |
-| `.github/pull_request_template.md` | PR template                             |
-| `.gitignore`                       | Go + Node + Terraform ignores           |
-| `README.md`                        | This file                               |
+```bash
+cd infra/terraform
+cp terraform.tfvars.example terraform.tfvars   # set project + acme_email
+terraform init
+terraform apply
+```
+
+Provisions: a GCS bucket (config + certs), a reserved **static IP** (apex
+A-records point here), an Artifact Registry repo, a COS VM running `redirectd` on
+the host network (ports 80/443), a firewall for 80/443, and a runtime service
+account with object access + image-pull rights. Key outputs: `static_ip`,
+`bucket`, `artifact_registry`.
+
+Seed the config once (thereafter, manage it with the CLI):
+
+```bash
+gcloud storage cp config.example.json gs://<bucket>/config/redirects.json
+```
+
+## CI/CD (GitHub → Google Cloud)
+
+- **CI** (`.github/workflows/ci.yaml`): `go vet`, the coverage gate, `go build`,
+  and a Docker build on every push/PR.
+- **CD** (`.github/workflows/deploy.yaml`): every push to `main` builds and pushes
+  the image to Artifact Registry and rolls the VM (which re-pulls `:latest` on
+  boot). Auth is **keyless via Workload Identity Federation** — no SA keys.
+
+> Images are built with `--provenance=false` so they're plain single-arch
+> manifests; the COS docker on the VM does not reliably pull buildx OCI indexes
+> that carry an attestation manifest.
+
+## DNS
+
+Apex domains can't CNAME, so they use an **A record to the static IP**;
+subdomains **CNAME** to the apex (which carries that A record). Generate the exact
+records with:
+
+```bash
+f3redirect dns --bucket <bucket> --static-ip <STATIC_IP>
+```
+
+Muletown's records live in our Route 53 zone and are managed here. Marshall's
+domain is controlled by a third party — hand them the `dns` output for
+`f3marshall.com` / `www.f3marshall.com`.

@@ -9,6 +9,7 @@
 # Coverage
 coverage.out
 coverage.txt
+coverage.html
 profile.cov
 
 # --- Node / TypeScript (frontend + API) ---
