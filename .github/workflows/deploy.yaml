@@ -1,8 +1,13 @@
 name: Deploy
 
-# Continuous deployment to Google Cloud: every push to main (or a manual
-# dispatch) builds the redirect image, pushes it to Artifact Registry, and
-# rolls the GCE VM so it pulls and runs the new image.
+# Continuous deployment to Google Cloud: builds the redirect image, pushes it
+# to Artifact Registry, and rolls the GCE VM so it pulls and runs the new image.
+#
+# Scoped: only runs when something that actually affects the redirectd
+# binary/container changes — NOT for web-only, test-only, docs, or testdata
+# changes (those would needlessly reset the redirect VM, briefly dropping live
+# redirects). The redirect tier's source is cmd/redirectd + internal/** + the
+# Go module + the root Dockerfile. Use the manual dispatch to force a deploy.
 #
 # Auth is keyless via Workload Identity Federation — no long-lived SA keys.
 # The WIF pool/provider and deployer SA are provisioned out-of-band (see
@@ -11,6 +16,15 @@ name: Deploy
 on:
   push:
     branches: [main]
+    paths:
+      - "cmd/redirectd/**"
+      - "internal/**"
+      - "!internal/**/*_test.go"
+      - "go.mod"
+      - "go.sum"
+      - "Dockerfile"
+      - ".dockerignore"
+      - ".github/workflows/deploy.yaml"
   workflow_dispatch:
 
 permissions:
