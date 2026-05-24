@@ -62,3 +62,15 @@ variable "cert_prefix" {
   description = "GCS prefix under the bucket for shared cert storage."
   default     = "certs"
 }
+
+variable "admin_host" {
+  type        = string
+  description = "Hostname the redirect tier reverse-proxies to the admin web app (empty disables). Configurable so it can move (e.g. admin.regions.f3nation.com)."
+  default     = ""
+}
+
+variable "admin_upstream" {
+  type        = string
+  description = "Upstream URL for the admin host (e.g. the Cloud Run service URL)."
+  default     = ""
+}

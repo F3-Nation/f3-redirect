@@ -41,6 +41,8 @@ run_redirectd() {
     -e ACME_EMAIL="${acme_email}" \
     -e ACME_STAGING="${acme_staging}" \
     -e REDIRECT_STATUS="${redirect_status}" \
+    -e ADMIN_HOST="${admin_host}" \
+    -e ADMIN_UPSTREAM="${admin_upstream}" \
     "$IMAGE"
 }
 
