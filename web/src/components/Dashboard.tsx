@@ -192,9 +192,9 @@ export function Dashboard({
       {domains.map((d) => (
         <div className="card" key={d.id}>
           <div className="row">
-            <div>
+            <div className="domain-head">
               <strong className="mono">{d.hostname}</strong>
-              <div className="muted mono">→ {d.destination}</div>
+              <div className="muted mono dest">→ {d.destination}</div>
             </div>
             <button className="danger" disabled={busy} onClick={() => remove(d.id)}>
               Remove
