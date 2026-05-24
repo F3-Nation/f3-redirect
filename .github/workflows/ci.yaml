@@ -32,6 +32,46 @@ jobs:
       - name: Build
         run: go build ./...
 
+  web:
+    name: Web checks
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: devpass
+          POSTGRES_DB: f3redirect
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    defaults:
+      run:
+        working-directory: web
+    env:
+      DATABASE_URL: postgres://postgres:devpass@localhost:5432/f3redirect
+      TEST_DATABASE_URL: postgres://postgres:devpass@localhost:5432/f3redirect
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - name: Apply schema to the CI Postgres
+        run: pnpm db:push
+      - name: Typecheck
+        run: pnpm typecheck
+      - name: Unit + integration + component tests (coverage gate)
+        run: pnpm test:cov
+        # NB: Playwright e2e runs locally (browser-heavy); unit/integration/
+        # component tests run here against the Postgres service.
+
   docker:
     name: Docker build
     runs-on: ubuntu-latest
