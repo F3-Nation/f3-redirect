@@ -1,5 +1,15 @@
 :root {
-  color-scheme: light dark;
+  /* F3 brand: light mode by default, deep-red accent. */
+  color-scheme: light;
+  --bg: #ffffff;
+  --surface: #ffffff;
+  --surface-alt: #f6f6f7;
+  --text: #18181b;
+  --muted: #6b7280;
+  --border: #e4e4e7;
+  --red: #9b1c1c;
+  --red-hover: #7f1717;
+  --green: #166534;
   font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   line-height: 1.5;
 }
@@ -10,23 +20,40 @@
 
 body {
   margin: 0;
-  background: #0b0f14;
-  color: #e6edf3;
+  background: var(--bg);
+  color: var(--text);
 }
 
 .container {
   max-width: 760px;
   margin: 0 auto;
-  padding: 2.5rem 1.25rem 4rem;
+  padding: 1.5rem 1.25rem 4rem;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.9rem 1.25rem;
+  border-bottom: 1px solid var(--border);
+}
+.brand svg {
+  color: var(--red);
+}
+.brand-name {
+  font-weight: 700;
+  font-size: 1.05rem;
 }
 
 h1 {
   font-size: 1.6rem;
   margin: 0 0 0.25rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
 }
 
 a {
-  color: #58a6ff;
+  color: var(--red);
 }
 
 button,
@@ -34,25 +61,31 @@ button,
   font: inherit;
   padding: 0.55rem 0.95rem;
   border-radius: 8px;
-  border: 1px solid #30363d;
-  background: #21262d;
-  color: #e6edf3;
+  border: 1px solid var(--border);
+  background: var(--surface-alt);
+  color: var(--text);
   cursor: pointer;
 }
-
 button:hover {
-  border-color: #58a6ff;
+  border-color: var(--red);
 }
-
 button.primary {
-  background: #238636;
-  border-color: #2ea043;
+  background: var(--red);
+  border-color: var(--red);
+  color: #fff;
 }
-
+button.primary:hover {
+  background: var(--red-hover);
+  border-color: var(--red-hover);
+}
 button.danger {
   background: transparent;
-  border-color: #f85149;
-  color: #f85149;
+  border-color: var(--red);
+  color: var(--red);
+}
+button:disabled {
+  opacity: 0.6;
+  cursor: default;
 }
 
 input {
@@ -60,24 +93,28 @@ input {
   width: 100%;
   padding: 0.55rem 0.7rem;
   border-radius: 8px;
-  border: 1px solid #30363d;
-  background: #0d1117;
-  color: #e6edf3;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+}
+input:focus {
+  outline: none;
+  border-color: var(--red);
 }
 
 label {
   display: block;
   font-size: 0.85rem;
-  color: #9da7b3;
+  color: var(--muted);
   margin: 0.75rem 0 0.3rem;
 }
 
 .card {
-  border: 1px solid #30363d;
+  border: 1px solid var(--border);
   border-radius: 12px;
   padding: 1rem 1.25rem;
   margin: 1rem 0;
-  background: #0d1117;
+  background: var(--surface);
 }
 
 .row {
@@ -93,26 +130,12 @@ code,
   font-size: 0.85rem;
 }
 
-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 0.5rem;
-}
-
-th,
-td {
-  text-align: left;
-  padding: 0.4rem 0.6rem;
-  border-bottom: 1px solid #21262d;
-  font-size: 0.85rem;
-}
-
 .muted {
-  color: #9da7b3;
+  color: var(--muted);
 }
 
 .error {
-  color: #f85149;
+  color: var(--red);
   font-size: 0.9rem;
 }
 
@@ -120,18 +143,20 @@ td {
 .badge {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.75rem;
-  border: 1px solid #30363d;
+  border: 1px solid var(--border);
   border-radius: 6px;
   padding: 0.1rem 0.4rem;
+  background: var(--surface-alt);
 }
 .req {
-  color: #2ea043;
+  color: var(--green);
 }
 .dns-record {
-  border: 1px solid #21262d;
+  border: 1px solid var(--border);
   border-radius: 10px;
   padding: 0.75rem 0.9rem;
   margin: 0.6rem 0;
+  background: var(--surface-alt);
 }
 .dns-record-head {
   display: flex;
@@ -146,7 +171,7 @@ td {
   margin: 0;
 }
 .dns-kv dt {
-  color: #9da7b3;
+  color: var(--muted);
   font-size: 0.8rem;
 }
 .dns-kv dd {
@@ -169,19 +194,20 @@ dialog.sheet {
   inset: 0;
 }
 dialog.sheet::backdrop {
-  background: rgba(0, 0, 0, 0.55);
+  background: rgba(0, 0, 0, 0.45);
 }
 .sheet-body {
   position: fixed;
   left: 0;
   right: 0;
   bottom: 0;
-  background: #0d1117;
-  border-top: 1px solid #30363d;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
   border-radius: 16px 16px 0 0;
   padding: 1rem 1.1rem calc(1.25rem + env(safe-area-inset-bottom));
   max-height: 85vh;
   overflow-y: auto;
+  box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.12);
 }
 @media (min-width: 640px) {
   .sheet-body {
@@ -192,6 +218,6 @@ dialog.sheet::backdrop {
     transform: translate(-50%, -50%);
     width: 520px;
     border-radius: 14px;
-    border: 1px solid #30363d;
+    border: 1px solid var(--border);
   }
 }
