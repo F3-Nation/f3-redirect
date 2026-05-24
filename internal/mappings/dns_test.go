@@ -7,12 +7,19 @@ func TestDNSInstructionsApex(t *testing.T) {
 		Mapping{Host: "f3muletown.com", Target: "https://regions.f3nation.com/muletown"},
 		DNSOptions{StaticIP: "203.0.113.10"},
 	)
-	if len(recs) != 1 {
-		t.Fatalf("apex should yield 1 record, got %d", len(recs))
+	// Required A record first.
+	if recs[0].Type != "A" || recs[0].Name != "f3muletown.com" || recs[0].Value != "203.0.113.10" || recs[0].Optional {
+		t.Errorf("apex required A record = %+v", recs[0])
 	}
-	r := recs[0]
-	if r.Type != "A" || r.Name != "f3muletown.com" || r.Value != "203.0.113.10" {
-		t.Errorf("apex record = %+v", r)
+	// Plus a recommended www CNAME pointing at the apex.
+	var www *DNSRecord
+	for i := range recs {
+		if recs[i].Name == "www.f3muletown.com" {
+			www = &recs[i]
+		}
+	}
+	if www == nil || www.Type != "CNAME" || www.Value != "f3muletown.com" || !www.Optional {
+		t.Errorf("apex should also recommend a www CNAME, got %+v", recs)
 	}
 }
 

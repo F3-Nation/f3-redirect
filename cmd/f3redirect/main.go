@@ -248,13 +248,17 @@ func cmdDNS(args []string) error {
 	}
 
 	tw := tabwriter.NewWriter(os.Stdout, 0, 2, 2, ' ', 0)
-	fmt.Fprintln(tw, "TYPE\tNAME\tVALUE")
+	fmt.Fprintln(tw, "TYPE\tNAME\tVALUE\tNEEDED")
 	for _, m := range cfg.Mappings {
 		if only != "" && mappings.NormalizeHost(m.Host) != only {
 			continue
 		}
 		for _, rec := range mappings.DNSInstructions(m, opt) {
-			fmt.Fprintf(tw, "%s\t%s\t%s\n", rec.Type, rec.Name, rec.Value)
+			needed := "required"
+			if rec.Optional {
+				needed = "recommended"
+			}
+			fmt.Fprintf(tw, "%s\t%s\t%s\t%s\n", rec.Type, rec.Name, rec.Value, needed)
 		}
 	}
 	return tw.Flush()
