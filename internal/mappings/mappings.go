@@ -82,9 +82,25 @@ func (c Config) index() map[string]string {
 
 // Resolve returns the target URL for the given request host, or ("", false) if
 // the host is not registered.
+//
+// As a convenience, the "www." variant of a registered host inherits that
+// host's target (e.g. registering f3muletown.com also serves
+// www.f3muletown.com). An explicit mapping for the www host always wins. This
+// keeps the "recommended www CNAME" honest: the redirect tier serves www and,
+// because IsRegistered flows through here, the on-demand TLS gate issues its
+// certificate too.
 func (c Config) Resolve(host string) (string, bool) {
-	t, ok := c.index()[NormalizeHost(host)]
-	return t, ok
+	idx := c.index()
+	h := NormalizeHost(host)
+	if t, ok := idx[h]; ok {
+		return t, true
+	}
+	if rest, found := strings.CutPrefix(h, "www."); found {
+		if t, ok := idx[rest]; ok {
+			return t, true
+		}
+	}
+	return "", false
 }
 
 // IsRegistered reports whether host has a mapping. This is the gate the
