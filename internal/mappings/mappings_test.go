@@ -44,6 +44,32 @@ func TestResolveAndRegistered(t *testing.T) {
 	}
 }
 
+func TestResolveWWWInheritsApex(t *testing.T) {
+	c := Config{Mappings: []Mapping{
+		{Host: "f3muletown.com", Target: "https://regions.f3nation.com/muletown"},
+	}}
+	// www of a registered apex inherits the apex's target...
+	if tgt, ok := c.Resolve("www.f3muletown.com"); !ok || tgt != "https://regions.f3nation.com/muletown" {
+		t.Errorf("www should inherit apex target: got %q ok=%v", tgt, ok)
+	}
+	// ...and is considered registered (so the on-demand TLS gate issues a cert).
+	if !c.IsRegistered("www.f3muletown.com") {
+		t.Error("www of a registered apex should be registered for the TLS gate")
+	}
+	// www of an unregistered host stays unregistered.
+	if c.IsRegistered("www.notregistered.com") {
+		t.Error("www of an unregistered host must not be registered")
+	}
+	// An explicit www registration wins over the apex inheritance.
+	c2 := Config{Mappings: []Mapping{
+		{Host: "f3muletown.com", Target: "https://apex"},
+		{Host: "www.f3muletown.com", Target: "https://explicit-www"},
+	}}
+	if tgt, _ := c2.Resolve("www.f3muletown.com"); tgt != "https://explicit-www" {
+		t.Errorf("explicit www mapping should take precedence: got %q", tgt)
+	}
+}
+
 func TestUpsertAndRemove(t *testing.T) {
 	c := sample()
 	n := len(c.Mappings)
