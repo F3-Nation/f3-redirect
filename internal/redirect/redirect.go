@@ -15,9 +15,15 @@ type Resolver interface {
 
 // Handler redirects each request to the target configured for its Host header.
 // Unknown hosts get 404. The redirect status is Status (301 or 302).
+//
+// Optionally, requests for AdminHost are reverse-proxied to AdminProxy instead
+// of redirected — this lets the same TLS-terminating tier also front the admin
+// web app (its certificate is issued on-demand like any other host).
 type Handler struct {
-	Resolver Resolver
-	Status   int
+	Resolver   Resolver
+	Status     int
+	AdminHost  string
+	AdminProxy http.Handler
 }
 
 // NewHandler builds a redirect handler. status must be 301 or 302; any other
@@ -38,6 +44,13 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	host := mappings.NormalizeHost(r.Host)
+
+	// Admin host is reverse-proxied (e.g. to the Cloud Run web app), not redirected.
+	if h.AdminHost != "" && h.AdminProxy != nil && host == h.AdminHost {
+		h.AdminProxy.ServeHTTP(w, r)
+		return
+	}
+
 	target, ok := h.Resolver.Resolve(host)
 	if !ok {
 		http.Error(w, "no redirect configured for this host", http.StatusNotFound)

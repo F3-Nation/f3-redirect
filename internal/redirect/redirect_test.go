@@ -68,6 +68,36 @@ func TestHandlerHealthz(t *testing.T) {
 	}
 }
 
+func TestHandlerAdminProxy(t *testing.T) {
+	proxied := false
+	stub := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		proxied = true
+		w.WriteHeader(http.StatusTeapot)
+	})
+	h := NewHandler(liveFrom(t, cfg()), http.StatusFound)
+	h.AdminHost = "admin.example.com"
+	h.AdminProxy = stub
+
+	// admin host → proxied, not redirected
+	req := httptest.NewRequest(http.MethodGet, "http://admin.example.com/x", nil)
+	req.Host = "admin.example.com"
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+	if !proxied || rec.Code != http.StatusTeapot {
+		t.Errorf("admin host should be proxied: proxied=%v code=%d", proxied, rec.Code)
+	}
+
+	// a normal registered host still redirects
+	proxied = false
+	req2 := httptest.NewRequest(http.MethodGet, "http://f3muletown.com/", nil)
+	req2.Host = "f3muletown.com"
+	rec2 := httptest.NewRecorder()
+	h.ServeHTTP(rec2, req2)
+	if proxied || rec2.Code != http.StatusFound {
+		t.Errorf("registered host should redirect, not proxy: proxied=%v code=%d", proxied, rec2.Code)
+	}
+}
+
 func TestNewHandlerStatusFallback(t *testing.T) {
 	if h := NewHandler(nil, 307); h.Status != http.StatusFound {
 		t.Errorf("invalid status should fall back to 302, got %d", h.Status)

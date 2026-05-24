@@ -1,0 +1,197 @@
+:root {
+  color-scheme: light dark;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  line-height: 1.5;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: #0b0f14;
+  color: #e6edf3;
+}
+
+.container {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 2.5rem 1.25rem 4rem;
+}
+
+h1 {
+  font-size: 1.6rem;
+  margin: 0 0 0.25rem;
+}
+
+a {
+  color: #58a6ff;
+}
+
+button,
+.btn {
+  font: inherit;
+  padding: 0.55rem 0.95rem;
+  border-radius: 8px;
+  border: 1px solid #30363d;
+  background: #21262d;
+  color: #e6edf3;
+  cursor: pointer;
+}
+
+button:hover {
+  border-color: #58a6ff;
+}
+
+button.primary {
+  background: #238636;
+  border-color: #2ea043;
+}
+
+button.danger {
+  background: transparent;
+  border-color: #f85149;
+  color: #f85149;
+}
+
+input {
+  font: inherit;
+  width: 100%;
+  padding: 0.55rem 0.7rem;
+  border-radius: 8px;
+  border: 1px solid #30363d;
+  background: #0d1117;
+  color: #e6edf3;
+}
+
+label {
+  display: block;
+  font-size: 0.85rem;
+  color: #9da7b3;
+  margin: 0.75rem 0 0.3rem;
+}
+
+.card {
+  border: 1px solid #30363d;
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  margin: 1rem 0;
+  background: #0d1117;
+}
+
+.row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+code,
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.85rem;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 0.5rem;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 0.4rem 0.6rem;
+  border-bottom: 1px solid #21262d;
+  font-size: 0.85rem;
+}
+
+.muted {
+  color: #9da7b3;
+}
+
+.error {
+  color: #f85149;
+  font-size: 0.9rem;
+}
+
+/* --- DNS records (stacked) + bottom-sheet drawer --- */
+.badge {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.75rem;
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  padding: 0.1rem 0.4rem;
+}
+.req {
+  color: #2ea043;
+}
+.dns-record {
+  border: 1px solid #21262d;
+  border-radius: 10px;
+  padding: 0.75rem 0.9rem;
+  margin: 0.6rem 0;
+}
+.dns-record-head {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.5rem;
+}
+.dns-kv {
+  display: grid;
+  grid-template-columns: 5rem 1fr;
+  gap: 0.25rem 0.75rem;
+  margin: 0;
+}
+.dns-kv dt {
+  color: #9da7b3;
+  font-size: 0.8rem;
+}
+.dns-kv dd {
+  margin: 0;
+  word-break: break-all;
+}
+.dns-note {
+  font-size: 0.8rem;
+  margin: 0.5rem 0 0;
+}
+
+dialog.sheet {
+  border: none;
+  padding: 0;
+  background: transparent;
+  max-width: 100%;
+  width: 100%;
+  margin: 0;
+  position: fixed;
+  inset: 0;
+}
+dialog.sheet::backdrop {
+  background: rgba(0, 0, 0, 0.55);
+}
+.sheet-body {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: #0d1117;
+  border-top: 1px solid #30363d;
+  border-radius: 16px 16px 0 0;
+  padding: 1rem 1.1rem calc(1.25rem + env(safe-area-inset-bottom));
+  max-height: 85vh;
+  overflow-y: auto;
+}
+@media (min-width: 640px) {
+  .sheet-body {
+    left: 50%;
+    right: auto;
+    bottom: auto;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 520px;
+    border-radius: 14px;
+    border: 1px solid #30363d;
+  }
+}

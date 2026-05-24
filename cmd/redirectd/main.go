@@ -61,12 +61,21 @@ func run(log *slog.Logger) error {
 	})
 	log.Info("loaded config", "hosts", live.Config().Hosts())
 
+	// Optional: front a configurable admin host (the web app) via reverse proxy
+	// on this same TLS-terminating tier. The host can change over time (env).
+	adminHost := mappings.NormalizeHost(os.Getenv("ADMIN_HOST"))
+	adminUpstream := os.Getenv("ADMIN_UPSTREAM")
+
 	tlsCfg, acme, err := server.Build(server.Options{
 		Storage: certStorage,
 		Email:   os.Getenv("ACME_EMAIL"),
 		Staging: truthy(os.Getenv("ACME_STAGING")),
 		Decide: func(ctx context.Context, name string) error {
-			if live.IsRegistered(name) {
+			n := mappings.NormalizeHost(name)
+			if adminHost != "" && n == adminHost {
+				return nil
+			}
+			if live.IsRegistered(n) {
 				return nil
 			}
 			return errors.New("host not registered: " + name)
@@ -81,6 +90,16 @@ func run(log *slog.Logger) error {
 		status = http.StatusMovedPermanently
 	}
 	handler := redirect.NewHandler(live, status)
+
+	if adminHost != "" && adminUpstream != "" {
+		proxy, perr := redirect.NewAdminProxy(adminUpstream, adminHost)
+		if perr != nil {
+			return perr
+		}
+		handler.AdminHost = adminHost
+		handler.AdminProxy = proxy
+		log.Info("admin reverse-proxy enabled", "host", adminHost, "upstream", adminUpstream)
+	}
 
 	httpsAddr := env("HTTPS_ADDR", ":443")
 	httpAddr := env("HTTP_ADDR", ":80")

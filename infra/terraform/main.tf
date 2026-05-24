@@ -113,6 +113,8 @@ resource "google_compute_instance" "redirect" {
       acme_email      = var.acme_email
       acme_staging    = var.acme_staging ? "true" : "false"
       redirect_status = var.redirect_status
+      admin_host      = var.admin_host
+      admin_upstream  = var.admin_upstream
     })
     google-logging-enabled = "true"
   }
