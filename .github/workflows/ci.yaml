@@ -24,6 +24,11 @@ jobs:
         env:
           COVER_THRESHOLD: "70"
 
+      - name: Cloud-adapter tests (certstore via fake-gcs-server)
+        # TestMain starts fsouza/fake-gcs-server via docker (available on the
+        # runner) and exercises the real GCS code paths of our certmagic.Storage.
+        run: go test ./internal/certstore/... -count=1
+
       - name: Build
         run: go build ./...
 
