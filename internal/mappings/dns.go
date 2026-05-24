@@ -8,6 +8,9 @@ type DNSRecord struct {
 	Name  string // the record name (the host itself)
 	Value string // the value: a static IP (A) or our canonical hostname (CNAME)
 	Note  string // human-friendly explanation
+	// Optional reports whether the record is merely recommended (true) vs.
+	// required to activate the redirect (false).
+	Optional bool
 }
 
 // DNSOptions describe our serving endpoint so we can tell tenants what to point
@@ -23,31 +26,51 @@ type DNSOptions struct {
 }
 
 // DNSInstructions returns the DNS record(s) required to activate the mapping.
+// This mirrors the web app's dnsInstructions() exactly (see the shared
+// contract in testdata/dns-instructions.json):
 //
-//   - An apex/root domain cannot CNAME, so it gets an A record to StaticIP.
-//   - A subdomain gets a CNAME to CanonicalHost (or, if unset, to its own apex).
+//   - apex: a required A record to StaticIP, plus a recommended CNAME so the
+//     www subdomain redirects too (apex can't CNAME itself).
+//   - subdomain: a single required CNAME to CanonicalHost (or, if unset, to its
+//     own apex, which must carry the A record).
 func DNSInstructions(m Mapping, opt DNSOptions) []DNSRecord {
 	host := NormalizeHost(m.Host)
 
 	if IsApex(host) {
+		return []DNSRecord{
+			{
+				Type:     "A",
+				Name:     host,
+				Value:    opt.StaticIP,
+				Note:     fmt.Sprintf("Required: %s is an apex domain and cannot use a CNAME, so point an A record at the redirect tier's static IP.", host),
+				Optional: false,
+			},
+			{
+				Type:     "CNAME",
+				Name:     "www." + host,
+				Value:    host,
+				Note:     fmt.Sprintf("Recommended: so www.%s redirects too. Point it at %s (which carries the A record above).", host, host),
+				Optional: true,
+			},
+		}
+	}
+
+	if opt.CanonicalHost != "" {
 		return []DNSRecord{{
-			Type:  "A",
-			Name:  host,
-			Value: opt.StaticIP,
-			Note:  fmt.Sprintf("%s is an apex domain and cannot use a CNAME; point an A record at the redirect tier's static IP.", host),
+			Type:     "CNAME",
+			Name:     host,
+			Value:    opt.CanonicalHost,
+			Note:     fmt.Sprintf("Required: %s is a subdomain; add a single CNAME to %s. No A record is needed.", host, opt.CanonicalHost),
+			Optional: false,
 		}}
 	}
 
-	target := opt.CanonicalHost
-	note := fmt.Sprintf("%s is a subdomain; CNAME it to our canonical redirect host.", host)
-	if target == "" {
-		target = ApexOf(host)
-		note = fmt.Sprintf("%s is a subdomain; CNAME it to %s (which must carry an A record to %s).", host, target, opt.StaticIP)
-	}
+	apex := ApexOf(host)
 	return []DNSRecord{{
-		Type:  "CNAME",
-		Name:  host,
-		Value: target,
-		Note:  note,
+		Type:     "CNAME",
+		Name:     host,
+		Value:    apex,
+		Note:     fmt.Sprintf("Required: %s is a subdomain; CNAME it to %s (which must carry an A record to %s).", host, apex, opt.StaticIP),
+		Optional: false,
 	}}
 }
