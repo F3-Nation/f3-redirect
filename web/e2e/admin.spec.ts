@@ -21,11 +21,18 @@ test("sign up, register a domain, and see the DNS records", async ({ page }) => 
   await page.locator("#destination").fill("https://example.com/e2e");
   await page.getByRole("button", { name: "Register domain" }).click();
 
-  // The domain card appears; open the DNS records bottom-sheet.
+  // The domain card appears.
   await expect(page.getByText(host).first()).toBeVisible();
-  await page.getByRole("button", { name: "View DNS records" }).click();
 
-  // The sheet shows the required apex A record to the static IP.
+  // Edit the destination in place (no delete+recreate).
+  await page.getByRole("button", { name: "Edit destination" }).click();
+  const dest = page.locator('input[id^="dest-"]');
+  await dest.fill("https://example.com/edited");
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page.getByText("https://example.com/edited")).toBeVisible();
+
+  // Open the DNS records bottom-sheet: required apex A record to the static IP.
+  await page.getByRole("button", { name: "View DNS records" }).click();
   await expect(page.getByText("34.172.36.60")).toBeVisible();
   await expect(page.getByText("required").first()).toBeVisible();
 });

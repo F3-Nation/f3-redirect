@@ -12,7 +12,7 @@ import { eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { domain, user } from "@/db/schema";
 import { GET, POST } from "./route";
-import { DELETE } from "./[id]/route";
+import { DELETE, PUT } from "./[id]/route";
 
 const UA = "itest-user-a";
 const UB = "itest-user-b";
@@ -96,6 +96,48 @@ describe("GET /api/domains", () => {
     const body = await res.json();
     expect(body.domains).toHaveLength(1);
     expect(body.domains[0].hostname).toBe(HOSTS[1]);
+  });
+});
+
+function put(id: string, body: unknown) {
+  return [
+    new Request("http://t", {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    }),
+    { params: Promise.resolve({ id }) },
+  ] as const;
+}
+
+describe("PUT /api/domains/:id", () => {
+  it("updates the destination for the owner", async () => {
+    session.current = { user: { id: UA, email: "a" } };
+    const created = await (await POST(post({ hostname: HOSTS[0], destination: "https://a.com/old" }))).json();
+    const id = created.domain.id;
+
+    const res = await PUT(...put(id, { destination: "https://a.com/new" }));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.domain.destination).toBe("https://a.com/new");
+
+    const rows = await db.select().from(domain).where(eq(domain.id, id));
+    expect(rows[0].destinationUrl).toBe("https://a.com/new");
+  });
+
+  it("400 on an invalid destination", async () => {
+    session.current = { user: { id: UA, email: "a" } };
+    const created = await (await POST(post({ hostname: HOSTS[0], destination: "https://a.com" }))).json();
+    const res = await PUT(...put(created.domain.id, { destination: "not-a-url" }));
+    expect(res.status).toBe(400);
+  });
+
+  it("404 when another account tries to edit it", async () => {
+    session.current = { user: { id: UA, email: "a" } };
+    const created = await (await POST(post({ hostname: HOSTS[0], destination: "https://a.com" }))).json();
+    session.current = { user: { id: UB, email: "b" } };
+    const res = await PUT(...put(created.domain.id, { destination: "https://hijack.com" }));
+    expect(res.status).toBe(404);
   });
 });
 

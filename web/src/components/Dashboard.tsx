@@ -87,6 +87,102 @@ function DnsSheet({ domain }: { domain: DomainItem }) {
   );
 }
 
+function DomainCard({
+  domain,
+  onChange,
+  onRemove,
+}: {
+  domain: DomainItem;
+  onChange: (d: DomainItem) => void;
+  onRemove: (id: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(domain.destination);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function save() {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/domains/${domain.id}`, {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ destination: draft }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? "update failed");
+        return;
+      }
+      onChange(data.domain);
+      setEditing(false);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function remove() {
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/domains/${domain.id}`, { method: "DELETE" });
+      if (res.ok) onRemove(domain.id);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="card">
+      <div className="row">
+        <div className="domain-head">
+          <strong className="mono">{domain.hostname}</strong>
+          {!editing && <div className="muted mono dest">→ {domain.destination}</div>}
+        </div>
+        {!editing && (
+          <button className="danger" disabled={busy} onClick={remove}>
+            Remove
+          </button>
+        )}
+      </div>
+
+      {editing ? (
+        <div style={{ marginTop: "0.6rem" }}>
+          <label htmlFor={`dest-${domain.id}`}>Redirect destination</label>
+          <input
+            id={`dest-${domain.id}`}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            autoCapitalize="off"
+            autoCorrect="off"
+          />
+          <div style={{ marginTop: "0.6rem", display: "flex", gap: "0.5rem" }}>
+            <button className="primary" disabled={busy} onClick={save}>
+              {busy ? "Saving…" : "Save"}
+            </button>
+            <button
+              disabled={busy}
+              onClick={() => {
+                setEditing(false);
+                setDraft(domain.destination);
+                setError(null);
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+          {error && <p className="error">{error}</p>}
+        </div>
+      ) : (
+        <div style={{ marginTop: "0.6rem", display: "flex", gap: "0.5rem" }}>
+          <button onClick={() => setEditing(true)}>Edit destination</button>
+          <DnsSheet domain={domain} />
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function Dashboard({
   initial,
   userEmail,
@@ -119,16 +215,6 @@ export function Dashboard({
       setDomains((d) => [...d, data.domain].sort((a, b) => a.hostname.localeCompare(b.hostname)));
       setHostname("");
       setDestination("");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function remove(id: string) {
-    setBusy(true);
-    try {
-      const res = await fetch(`/api/domains/${id}`, { method: "DELETE" });
-      if (res.ok) setDomains((d) => d.filter((x) => x.id !== id));
     } finally {
       setBusy(false);
     }
@@ -190,20 +276,12 @@ export function Dashboard({
       {domains.length === 0 && <p className="muted">No domains yet — register one above.</p>}
 
       {domains.map((d) => (
-        <div className="card" key={d.id}>
-          <div className="row">
-            <div className="domain-head">
-              <strong className="mono">{d.hostname}</strong>
-              <div className="muted mono dest">→ {d.destination}</div>
-            </div>
-            <button className="danger" disabled={busy} onClick={() => remove(d.id)}>
-              Remove
-            </button>
-          </div>
-          <div style={{ marginTop: "0.6rem" }}>
-            <DnsSheet domain={d} />
-          </div>
-        </div>
+        <DomainCard
+          key={d.id}
+          domain={d}
+          onChange={(u) => setDomains((ds) => ds.map((x) => (x.id === u.id ? u : x)))}
+          onRemove={(id) => setDomains((ds) => ds.filter((x) => x.id !== id))}
+        />
       ))}
     </div>
   );

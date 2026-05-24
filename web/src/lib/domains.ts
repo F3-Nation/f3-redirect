@@ -32,6 +32,19 @@ export function apexOf(host: string): string {
 
 const HOSTNAME_RE = /^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$/;
 
+const destinationField = z
+  .string()
+  .trim()
+  .min(1, "destination URL is required")
+  .refine((u) => {
+    try {
+      const parsed = new URL(u);
+      return parsed.protocol === "http:" || parsed.protocol === "https:";
+    } catch {
+      return false;
+    }
+  }, "must be an absolute http(s) URL");
+
 export const registerSchema = z.object({
   hostname: z
     .string()
@@ -39,19 +52,12 @@ export const registerSchema = z.object({
     .min(1, "hostname is required")
     .transform(normalizeHost)
     .refine((h) => HOSTNAME_RE.test(h), "must be a valid fully-qualified domain (e.g. example.com)"),
-  destination: z
-    .string()
-    .trim()
-    .min(1, "destination URL is required")
-    .refine((u) => {
-      try {
-        const parsed = new URL(u);
-        return parsed.protocol === "http:" || parsed.protocol === "https:";
-      } catch {
-        return false;
-      }
-    }, "must be an absolute http(s) URL"),
+  destination: destinationField,
 });
+
+// Editing a redirect only changes the destination; the hostname is immutable
+// (changing it is a different registration).
+export const updateSchema = z.object({ destination: destinationField });
 
 export type DnsRecord = {
   type: "A" | "CNAME";
