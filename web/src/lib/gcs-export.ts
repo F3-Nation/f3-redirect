@@ -41,3 +41,29 @@ export async function exportConfigToGCS(): Promise<number> {
 
   return mappings.length;
 }
+
+/**
+ * Pure: of the given cert-storage object names, which belong to `host`.
+ * CertMagic stores under `certs/certificates/<ca>/<host>/...`, so we match the
+ * host as a whole path segment (`/<host>/`) — this correctly excludes
+ * `www.<host>` when cleaning up the apex, and vice-versa.
+ */
+export function certObjectsForHost(names: string[], host: string): string[] {
+  const seg = `/${host}/`;
+  return names.filter((n) => n.includes(seg));
+}
+
+/**
+ * Garbage-collect a removed host's TLS cert material from GCS so it doesn't
+ * linger after the redirect is deleted. Best-effort: failures are swallowed
+ * (the mapping removal + export are the critical side effects). Returns the
+ * number of objects deleted. No-op in local dev (EXPORT_LOCAL_PATH set).
+ */
+export async function deleteCertsForHost(host: string): Promise<number> {
+  if (LOCAL_PATH) return 0;
+  const storage = new Storage();
+  const [files] = await storage.bucket(BUCKET).getFiles({ prefix: "certs/" });
+  const targets = files.filter((f) => certObjectsForHost([f.name], host).length > 0);
+  await Promise.all(targets.map((f) => f.delete().catch(() => undefined)));
+  return targets.length;
+}
